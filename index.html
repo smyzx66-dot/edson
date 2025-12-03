@@ -27,11 +27,10 @@
         .animate-enter { animation: slideInUp 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; opacity: 0; }
         @keyframes slideInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         
-        /* Checkbox & Animation */
-        .lecture-item.completed .checkbox-bg { background-color: #10b981; border-color: #10b981; }
-        .lecture-item.completed .check-icon { stroke-dashoffset: 0; }
+        /* Checkbox & Animation Styles */
+        .lecture-item.completed .status-overlay { opacity: 1; background: rgba(16, 185, 129, 0.9); }
         .lecture-item.completed .lec-title { text-decoration: line-through; color: #94a3b8; }
-        .check-icon { stroke-dasharray: 18; stroke-dashoffset: 18; transition: stroke-dashoffset 0.3s ease; }
+        .lecture-item.completed img { filter: grayscale(100%); }
 
         /* Video Container */
         .video-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 20px; background: #000; box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5); }
@@ -130,9 +129,11 @@
 
     <script>
         const PASSWORD = "123";
+        // الجزء الثابت لرابط الصور المصغرة
+        const THUMBNAIL_BASE = "https://vz-2d153850-243.b-cdn.net"; 
+        
         let allData = [];
         let completedLectures = JSON.parse(localStorage.getItem('hameed_completed_v3')) || [];
-        // هنا نخزن مدة كل فيديو (ID: Duration)
         let savedDurations = JSON.parse(localStorage.getItem('hameed_durations')) || {};
         let currentPlayingId = null;
 
@@ -159,7 +160,6 @@
                 if(!response.ok) throw new Error();
                 const raw = await response.json();
                 
-                // إضافة IDs تلقائية اذا ماكو
                 allData = raw.teachers.map((t, ti) => ({
                     ...t, classes: t.classes.map((c, ci) => ({
                         ...c, lectures: c.lectures.map((l, li) => ({
@@ -173,10 +173,26 @@
                 updateStats();
                 updateSmartSchedule();
                 checkLastWatched();
-                
                 document.getElementById('dateDisplay').innerText = new Date().toLocaleDateString('ar-IQ', {weekday:'long', day:'numeric', month:'long'});
             } catch(e) {
                 document.getElementById('loadingText').innerHTML = "فشل تحميل الملف (data.json)";
+            }
+        }
+
+        // --- دالة استخراج رابط الصورة المصغرة ---
+        function getThumbnailUrl(videoUrl) {
+            try {
+                // videoUrl مثال: https://iframe.mediadelivery.net/embed/519756/ed13dc36-4508...
+                if (!videoUrl || videoUrl === '#') return 'https://via.placeholder.com/150x100?text=No+Video';
+                
+                // نقص الرابط وناخذ اخر جزء (الآيدي)
+                // .split('?')[0] هاي علمود نحذف اي زيادات اذا اكوو بعد الايدي
+                const videoId = videoUrl.split('/').pop().split('?')[0];
+                
+                // نركب الرابط الجديد
+                return `${THUMBNAIL_BASE}/${videoId}/thumbnail.jpg`;
+            } catch (e) {
+                return 'https://via.placeholder.com/150x100?text=Error';
             }
         }
 
@@ -195,49 +211,59 @@
                     let lecsHtml = '';
                     cls.lectures.forEach(lec => {
                         const isDone = completedLectures.includes(lec.id);
-                        // جلب الوقت المخزن أو وضع علامة --:--
                         const duration = savedDurations[lec.id] || '--:--';
+                        const thumbUrl = getThumbnailUrl(lec.url); // استدعاء دالة الصورة
                         
                         lecsHtml += `
-                            <div id="row_${lec.id}" class="lecture-item ${isDone ? 'completed' : ''} flex items-center justify-between p-3 mb-2 bg-white rounded-xl border border-slate-100 hover:shadow-md transition-shadow">
-                                <div class="flex items-center gap-3 flex-1 cursor-pointer select-none" onclick="toggleComplete('${lec.id}')">
-                                    <div class="checkbox-bg w-6 h-6 rounded-lg border-2 border-slate-200 flex items-center justify-center transition-colors duration-300">
-                                        <svg class="check-icon w-3.5 h-3.5 text-white stroke-[3] fill-none stroke-current" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+                            <div id="row_${lec.id}" class="lecture-item ${isDone ? 'completed' : ''} flex gap-3 p-3 mb-3 bg-white rounded-xl border border-slate-100 hover:shadow-lg transition-all duration-300">
+                                
+                                <div class="relative w-32 h-20 flex-shrink-0 cursor-pointer rounded-lg overflow-hidden group" onclick="openPlayer('${lec.title.replace(/'/g, "\\'")}', '${lec.url}', '${lec.id}')">
+                                    <img src="${thumbUrl}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 bg-slate-200" onerror="this.src='https://via.placeholder.com/150?text=No+Img'">
+                                    <div class="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                                        <div class="w-8 h-8 rounded-full bg-white/30 backdrop-blur-sm flex items-center justify-center text-white scale-90 group-hover:scale-110 transition-transform">
+                                            <i class="fa-solid fa-play text-xs pl-0.5"></i>
+                                        </div>
                                     </div>
-                                    <div class="flex flex-col">
-                                        <div class="flex items-center gap-2">
-                                            <span class="lec-title text-sm font-bold text-slate-700 transition-colors duration-300">${lec.title}</span>
-                                        </div>
-                                        <div class="flex items-center gap-3 mt-1">
-                                            ${lec.description ? `<span class="text-[10px] text-slate-400 truncate max-w-[120px]">${lec.description}</span>` : ''}
-                                            <span id="dur_${lec.id}" class="text-[10px] ${duration !== '--:--' ? 'text-brand-500 bg-brand-50' : 'text-slate-300 bg-slate-50'} px-1.5 py-0.5 rounded font-bold flex items-center gap-1 dir-ltr">
-                                                <i class="fa-regular fa-clock text-[9px]"></i> ${duration}
-                                            </span>
-                                        </div>
+                                    <div class="absolute bottom-1 left-1 bg-black/60 backdrop-blur-md px-1.5 rounded text-[9px] text-white font-bold dir-ltr font-mono">
+                                        <span id="dur_img_${lec.id}">${duration}</span>
                                     </div>
                                 </div>
-                                <button onclick="openPlayer('${lec.title.replace(/'/g, "\\'")}', '${lec.url}', '${lec.id}')" class="w-9 h-9 rounded-full bg-slate-50 text-brand-600 flex items-center justify-center hover:bg-brand-600 hover:text-white transition-all active:scale-90 shadow-sm border border-slate-100">
-                                    <i class="fa-solid fa-play text-xs ml-0.5"></i>
-                                </button>
+
+                                <div class="flex flex-col justify-between flex-1 py-0.5">
+                                    <div>
+                                        <div class="flex justify-between items-start">
+                                            <h3 class="lec-title text-sm font-bold text-slate-800 leading-snug mb-1 line-clamp-2">${lec.title}</h3>
+                                            
+                                            <button onclick="toggleComplete('${lec.id}')" class="status-btn w-6 h-6 rounded-full border-2 border-slate-200 flex items-center justify-center transition-all ${isDone ? 'bg-green-500 border-green-500 text-white' : 'text-transparent hover:border-brand-300'}">
+                                                <i class="fa-solid fa-check text-xs"></i>
+                                            </button>
+                                        </div>
+                                        ${lec.description ? `<p class="text-[10px] text-slate-400 line-clamp-1">${lec.description}</p>` : ''}
+                                    </div>
+                                    
+                                    <div class="flex items-center gap-2 mt-auto">
+                                        <span class="text-[9px] bg-slate-50 text-slate-400 px-2 py-0.5 rounded border border-slate-100">فيديو مسجل</span>
+                                    </div>
+                                </div>
                             </div>`;
                     });
                     
                     classesHtml += `
-                        <details class="group mb-3" ${ci === 0 ? 'open' : ''}>
-                            <summary class="flex items-center justify-between p-3 bg-slate-50 rounded-xl cursor-pointer list-none font-bold text-slate-700 text-sm select-none hover:bg-slate-100 transition-colors">
+                        <details class="group mb-4" ${ci === 0 ? 'open' : ''}>
+                            <summary class="flex items-center justify-between p-3 bg-white rounded-xl cursor-pointer list-none font-bold text-slate-700 text-sm select-none shadow-sm mb-2 border border-slate-100/50 hover:bg-slate-50 transition-colors">
                                 <span class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-brand-500"></span>${cls.name}</span>
                                 <i class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform group-open:rotate-180"></i>
                             </summary>
-                            <div class="pt-2">${lecsHtml}</div>
+                            <div class="pt-1 px-1">${lecsHtml}</div>
                         </details>`;
                 });
 
                 section.innerHTML = `
-                    <div class="flex items-center gap-4 mb-3 px-1">
-                        <img src="${teacher.image}" class="w-12 h-12 rounded-xl bg-slate-200 object-cover shadow-sm">
+                    <div class="flex items-center gap-4 mb-4 mt-2 px-1">
+                        <img src="${teacher.image}" class="w-14 h-14 rounded-2xl bg-white p-1 object-cover shadow-sm border border-slate-100">
                         <div>
-                            <h2 class="font-black text-slate-800">${teacher.name}</h2>
-                            <span class="text-[10px] bg-brand-100 text-brand-700 px-2 py-0.5 rounded-md font-bold">${teacher.subject}</span>
+                            <h2 class="font-black text-lg text-slate-800">${teacher.name}</h2>
+                            <span class="text-[10px] bg-brand-50 text-brand-600 px-2.5 py-1 rounded-full font-bold border border-brand-100">${teacher.subject}</span>
                         </div>
                     </div>
                     ${classesHtml}
@@ -248,12 +274,20 @@
 
         function toggleComplete(id) {
             const row = document.getElementById(`row_${id}`);
+            const btn = row ? row.querySelector('.status-btn') : null;
+
             if (completedLectures.includes(id)) {
                 completedLectures = completedLectures.filter(i => i !== id);
                 if(row) row.classList.remove('completed');
+                if(btn) {
+                    btn.className = "status-btn w-6 h-6 rounded-full border-2 border-slate-200 flex items-center justify-center transition-all text-transparent hover:border-brand-300";
+                }
             } else {
                 completedLectures.push(id);
                 if(row) row.classList.add('completed');
+                if(btn) {
+                    btn.className = "status-btn w-6 h-6 rounded-full border-2 border-green-500 bg-green-500 flex items-center justify-center transition-all text-white";
+                }
                 triggerConfetti();
             }
             localStorage.setItem('hameed_completed_v3', JSON.stringify(completedLectures));
@@ -261,12 +295,11 @@
             updateSmartSchedule();
         }
 
-        // --- الفيديو (مع ميزة قراءة الوقت) ---
+        // --- الفيديو والذاكرة ---
         function openPlayer(title, url, id) {
             if(!url || url === '#') { alert('ماكو رابط!'); return; }
             currentPlayingId = id;
             
-            // إضافة context=true للسماح بالتواصل مع Iframe
             let finalUrl = url;
             if (!finalUrl.includes('?')) finalUrl += '?context=true';
             else finalUrl += '&context=true';
@@ -276,11 +309,9 @@
             modal.classList.remove('hidden');
             setTimeout(()=>modal.classList.remove('opacity-0'), 10);
             
-            // السماح بجميع الصلاحيات
             document.getElementById('videoContainer').innerHTML = 
                 `<iframe id="activeFrame" src="${finalUrl}" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" style="border:none; width:100%; height:100%;"></iframe>`;
             
-            // الاستماع للوقت
             window.addEventListener('message', handleVideoMessage);
 
             const btn = document.getElementById('markCompleteBtn');
@@ -296,19 +327,12 @@
             checkLastWatched();
         }
 
-        // دالة التقاط الوقت من Iframe
         function handleVideoMessage(e) {
-            // نتأكد ان الرسالة من الفيديو
             if (!currentPlayingId) return;
-
-            // Bunny.net يرسل احداث مختلفة، نحاول نصيد الوقت
-            // ملاحظة: قد تختلف الاستجابة حسب نوع المشغل، هذا كود عام لالتقاط duration
             try {
-                // في حالة Bunny Stream V3
                 if (e.data && e.data.type === 'player.ready' && e.data.duration) {
                    saveDuration(currentPlayingId, e.data.duration);
                 }
-                // محاولة أخرى اذا ارسل الوقت مباشرة
                 if (e.data && typeof e.data.duration === 'number' && e.data.duration > 0) {
                     saveDuration(currentPlayingId, e.data.duration);
                 }
@@ -316,28 +340,22 @@
         }
 
         function saveDuration(id, seconds) {
-            // تحويل الثواني الى دقائق:ثواني
             const m = Math.floor(seconds / 60);
             const s = Math.floor(seconds % 60);
             const timeStr = `${m}:${s < 10 ? '0'+s : s}`;
             
-            // حفظ اذا ما كان موجود
             if (savedDurations[id] !== timeStr) {
                 savedDurations[id] = timeStr;
                 localStorage.setItem('hameed_durations', JSON.stringify(savedDurations));
                 
-                // تحديث الواجهة فوراً اذا كانت مفتوحة بالخلفية
-                const badge = document.getElementById(`dur_${id}`);
-                if (badge) {
-                    badge.innerHTML = `<i class="fa-regular fa-clock text-[9px]"></i> ${timeStr}`;
-                    badge.classList.replace('text-slate-300', 'text-brand-500');
-                    badge.classList.replace('bg-slate-50', 'bg-brand-50');
-                }
+                // تحديث الوقت فوق الصورة
+                const badge = document.getElementById(`dur_img_${id}`);
+                if (badge) badge.innerText = timeStr;
             }
         }
 
         function closeVideoModal() {
-            window.removeEventListener('message', handleVideoMessage); // توقف عن الاستماع
+            window.removeEventListener('message', handleVideoMessage);
             const modal = document.getElementById('videoModal');
             modal.classList.add('opacity-0');
             setTimeout(()=>{
@@ -353,7 +371,7 @@
             }
         }
 
-        // --- باقي الوظائف المساعدة ---
+        // --- باقي الوظائف ---
         function checkLastWatched() {
             const last = JSON.parse(localStorage.getItem('hameed_lastWatched'));
             if(last) {
@@ -417,7 +435,6 @@
             anim();
         }
 
-        // بحث
         document.getElementById('searchInput').addEventListener('input', (e) => {
             const val = e.target.value.toLowerCase();
             if(!val) renderApp(allData);
