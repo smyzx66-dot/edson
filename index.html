@@ -24,28 +24,23 @@
 
     <style>
         body { background: #f3f4f6; -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.8);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-        }
-        @keyframes slideInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .animate-enter { animation: slideInUp 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; opacity: 0; }
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 20px; }
+        @keyframes slideInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         
-        /* Checkbox Animation */
-        .check-anim { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        /* Checkbox & Animation */
         .lecture-item.completed .checkbox-bg { background-color: #10b981; border-color: #10b981; }
         .lecture-item.completed .check-icon { stroke-dashoffset: 0; }
         .lecture-item.completed .lec-title { text-decoration: line-through; color: #94a3b8; }
         .check-icon { stroke-dasharray: 18; stroke-dashoffset: 18; transition: stroke-dashoffset 0.3s ease; }
 
-        /* Video */
-        .video-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 20px; background: #000; }
+        /* Video Container */
+        .video-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 20px; background: #000; box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5); }
         .video-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 20px; }
     </style>
 </head>
 <body class="text-slate-800 h-[100dvh] flex flex-col bg-slate-100">
@@ -94,9 +89,7 @@
                     <i class="fa-regular fa-calendar-check text-brand-400"></i>
                     <h3 class="font-bold text-sm">جدولك لليوم (نظام ذكي)</h3>
                 </div>
-                <div id="scheduleContent" class="space-y-3">
-                    </div>
-                <p class="text-[10px] text-slate-400 mt-3 text-center">الجدول يتحدث تلقائياً حسب المحاضرات اللي ممخلصها</p>
+                <div id="scheduleContent" class="space-y-3"></div>
             </div>
 
             <div id="resumeContainer" class="hidden mb-6 animate-enter">
@@ -123,7 +116,7 @@
             <h2 class="text-white font-bold text-sm truncate flex-1 pl-4" id="modalTitle">عنوان</h2>
             <button onclick="closeVideoModal()" class="text-white w-8 h-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-rose-500 transition-colors"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        <div class="flex-1 flex items-center justify-center bg-black">
+        <div class="flex-1 flex items-center justify-center bg-black relative">
             <div class="w-full max-w-4xl video-container">
                 <div id="videoContainer"></div>
             </div>
@@ -139,6 +132,8 @@
         const PASSWORD = "123";
         let allData = [];
         let completedLectures = JSON.parse(localStorage.getItem('hameed_completed_v3')) || [];
+        // هنا نخزن مدة كل فيديو (ID: Duration)
+        let savedDurations = JSON.parse(localStorage.getItem('hameed_durations')) || {};
         let currentPlayingId = null;
 
         // --- إدارة الدخول ---
@@ -164,7 +159,7 @@
                 if(!response.ok) throw new Error();
                 const raw = await response.json();
                 
-                // إضافة IDs تلقائية
+                // إضافة IDs تلقائية اذا ماكو
                 allData = raw.teachers.map((t, ti) => ({
                     ...t, classes: t.classes.map((c, ci) => ({
                         ...c, lectures: c.lectures.map((l, li) => ({
@@ -176,10 +171,9 @@
                 document.getElementById('loadingText').classList.add('hidden');
                 renderApp(allData);
                 updateStats();
-                updateSmartSchedule(); // تشغيل الجدول الذكي
+                updateSmartSchedule();
                 checkLastWatched();
                 
-                // التاريخ والتحية
                 document.getElementById('dateDisplay').innerText = new Date().toLocaleDateString('ar-IQ', {weekday:'long', day:'numeric', month:'long'});
             } catch(e) {
                 document.getElementById('loadingText').innerHTML = "فشل تحميل الملف (data.json)";
@@ -201,7 +195,9 @@
                     let lecsHtml = '';
                     cls.lectures.forEach(lec => {
                         const isDone = completedLectures.includes(lec.id);
-                        // لاحظ هنا ضفت ID للـ DIV نفسه عشان نكدر نوصل له بسرعة بدون إعادة رسم الصفحة
+                        // جلب الوقت المخزن أو وضع علامة --:--
+                        const duration = savedDurations[lec.id] || '--:--';
+                        
                         lecsHtml += `
                             <div id="row_${lec.id}" class="lecture-item ${isDone ? 'completed' : ''} flex items-center justify-between p-3 mb-2 bg-white rounded-xl border border-slate-100 hover:shadow-md transition-shadow">
                                 <div class="flex items-center gap-3 flex-1 cursor-pointer select-none" onclick="toggleComplete('${lec.id}')">
@@ -209,11 +205,18 @@
                                         <svg class="check-icon w-3.5 h-3.5 text-white stroke-[3] fill-none stroke-current" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
                                     </div>
                                     <div class="flex flex-col">
-                                        <span class="lec-title text-sm font-bold text-slate-700 transition-colors duration-300">${lec.title}</span>
-                                        ${lec.description ? `<span class="text-[10px] text-slate-400 truncate w-40">${lec.description}</span>` : ''}
+                                        <div class="flex items-center gap-2">
+                                            <span class="lec-title text-sm font-bold text-slate-700 transition-colors duration-300">${lec.title}</span>
+                                        </div>
+                                        <div class="flex items-center gap-3 mt-1">
+                                            ${lec.description ? `<span class="text-[10px] text-slate-400 truncate max-w-[120px]">${lec.description}</span>` : ''}
+                                            <span id="dur_${lec.id}" class="text-[10px] ${duration !== '--:--' ? 'text-brand-500 bg-brand-50' : 'text-slate-300 bg-slate-50'} px-1.5 py-0.5 rounded font-bold flex items-center gap-1 dir-ltr">
+                                                <i class="fa-regular fa-clock text-[9px]"></i> ${duration}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
-                                <button onclick="openPlayer('${lec.title.replace(/'/g, "\\'")}', '${lec.url}', '${lec.id}')" class="w-9 h-9 rounded-full bg-slate-50 text-brand-600 flex items-center justify-center hover:bg-brand-600 hover:text-white transition-all active:scale-90">
+                                <button onclick="openPlayer('${lec.title.replace(/'/g, "\\'")}', '${lec.url}', '${lec.id}')" class="w-9 h-9 rounded-full bg-slate-50 text-brand-600 flex items-center justify-center hover:bg-brand-600 hover:text-white transition-all active:scale-90 shadow-sm border border-slate-100">
                                     <i class="fa-solid fa-play text-xs ml-0.5"></i>
                                 </button>
                             </div>`;
@@ -243,123 +246,43 @@
             });
         }
 
-        // --- المنطق المطور للتشيك (بدون لاق) ---
         function toggleComplete(id) {
             const row = document.getElementById(`row_${id}`);
-            
             if (completedLectures.includes(id)) {
-                // إلغاء الصح
                 completedLectures = completedLectures.filter(i => i !== id);
                 if(row) row.classList.remove('completed');
             } else {
-                // وضع الصح
                 completedLectures.push(id);
                 if(row) row.classList.add('completed');
                 triggerConfetti();
             }
-
-            // حفظ بالخلفية
             localStorage.setItem('hameed_completed_v3', JSON.stringify(completedLectures));
-            
-            // تحديث الارقام والجدول فقط (بدون إعادة رسم القائمة)
             updateStats();
             updateSmartSchedule();
         }
 
-        // --- ميزة الجدول الذكي (Smart Schedule) ---
-        function updateSmartSchedule() {
-            const container = document.getElementById('scheduleContent');
-            const card = document.getElementById('smartScheduleCard');
-            
-            // نجمع كل المحاضرات اللي لسة مماخذة
-            let pendingLectures = [];
-            allData.forEach(t => t.classes.forEach(c => c.lectures.forEach(l => {
-                if (!completedLectures.includes(l.id)) pendingLectures.push({ title: l.title, id: l.id });
-            })));
-
-            if (pendingLectures.length === 0) {
-                // اذا مخلص كلشي
-                container.innerHTML = `
-                    <div class="flex items-center gap-3 bg-green-500/20 p-3 rounded-xl border border-green-500/30">
-                        <i class="fa-solid fa-trophy text-yellow-400 text-xl"></i>
-                        <div>
-                            <p class="font-bold text-sm">عاشت ايدك يا بطل!</p>
-                            <p class="text-xs opacity-80">خلصت كل المحاضرات، ارتاح هسه.</p>
-                        </div>
-                    </div>`;
-                card.classList.remove('hidden');
-                return;
-            }
-
-            // ناخذ اول 2 محاضرات بس عشان لا نضغط الطالب
-            const nextUp = pendingLectures.slice(0, 2);
-            let currentTime = new Date();
-            // نضيف 10 دقايق وقت "استعداد"
-            currentTime.setMinutes(currentTime.getMinutes() + 10);
-
-            let html = '';
-            nextUp.forEach((lec, index) => {
-                // تنسيق الوقت (مثلا: 04:30 م)
-                const timeString = currentTime.toLocaleTimeString('ar-IQ', { hour: 'numeric', minute: '2-digit' });
-                
-                html += `
-                    <div class="flex items-center justify-between bg-white/5 p-3 rounded-xl hover:bg-white/10 transition-colors border border-white/5">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-lg bg-brand-500/20 flex items-center justify-center text-brand-300 font-bold text-xs border border-brand-500/30">
-                                ${index + 1}
-                            </div>
-                            <div>
-                                <p class="font-bold text-sm line-clamp-1">${lec.title}</p>
-                                <p class="text-[10px] text-brand-300">وقت البدء المقترح: <span class="text-white font-bold dir-ltr">${timeString}</span></p>
-                            </div>
-                        </div>
-                        ${index === 0 ? '<span class="text-[10px] bg-red-500 px-2 py-0.5 rounded text-white animate-pulse">التالي</span>' : ''}
-                    </div>
-                `;
-                
-                // نفترض المحاضرة تاخذ ساعة، فاللي وراها تبدي بعد ساعة
-                currentTime.setHours(currentTime.getHours() + 1);
-            });
-
-            container.innerHTML = html;
-            card.classList.remove('hidden');
-        }
-
-        // --- باقي الوظائف (Stats, Player, etc) ---
-        function updateStats() {
-            let total = 0; allData.forEach(t => t.classes.forEach(c => total += c.lectures.length));
-            const count = completedLectures.length;
-            const percent = total ? Math.round((count/total)*100) : 0;
-            document.getElementById('percentageText').innerText = `${percent}%`;
-        }
-
-        // --- بحث ---
-        document.getElementById('searchInput').addEventListener('input', (e) => {
-            const val = e.target.value.toLowerCase();
-            // هنا نضطر نعيد الرسم لان الترتيب يختلف
-            if(!val) renderApp(allData);
-            else {
-                const filtered = allData.map(t => ({
-                    ...t, classes: t.classes.map(c => ({
-                        ...c, lectures: c.lectures.filter(l => l.title.toLowerCase().includes(val))
-                    })).filter(c => c.lectures.length)
-                })).filter(t => t.classes.length);
-                renderApp(filtered);
-            }
-        });
-
-        // --- الفيديو والذاكرة ---
+        // --- الفيديو (مع ميزة قراءة الوقت) ---
         function openPlayer(title, url, id) {
             if(!url || url === '#') { alert('ماكو رابط!'); return; }
             currentPlayingId = id;
+            
+            // إضافة context=true للسماح بالتواصل مع Iframe
+            let finalUrl = url;
+            if (!finalUrl.includes('?')) finalUrl += '?context=true';
+            else finalUrl += '&context=true';
+
             document.getElementById('modalTitle').innerText = title;
             const modal = document.getElementById('videoModal');
             modal.classList.remove('hidden');
             setTimeout(()=>modal.classList.remove('opacity-0'), 10);
             
-            document.getElementById('videoContainer').innerHTML = `<iframe src="${url}" allow="autoplay; fullscreen" frameborder="0"></iframe>`;
+            // السماح بجميع الصلاحيات
+            document.getElementById('videoContainer').innerHTML = 
+                `<iframe id="activeFrame" src="${finalUrl}" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" style="border:none; width:100%; height:100%;"></iframe>`;
             
-            // تحديث زر "تم" داخل المشغل
+            // الاستماع للوقت
+            window.addEventListener('message', handleVideoMessage);
+
             const btn = document.getElementById('markCompleteBtn');
             if(completedLectures.includes(id)) {
                 btn.classList.replace('bg-brand-600', 'bg-green-600');
@@ -373,7 +296,48 @@
             checkLastWatched();
         }
 
+        // دالة التقاط الوقت من Iframe
+        function handleVideoMessage(e) {
+            // نتأكد ان الرسالة من الفيديو
+            if (!currentPlayingId) return;
+
+            // Bunny.net يرسل احداث مختلفة، نحاول نصيد الوقت
+            // ملاحظة: قد تختلف الاستجابة حسب نوع المشغل، هذا كود عام لالتقاط duration
+            try {
+                // في حالة Bunny Stream V3
+                if (e.data && e.data.type === 'player.ready' && e.data.duration) {
+                   saveDuration(currentPlayingId, e.data.duration);
+                }
+                // محاولة أخرى اذا ارسل الوقت مباشرة
+                if (e.data && typeof e.data.duration === 'number' && e.data.duration > 0) {
+                    saveDuration(currentPlayingId, e.data.duration);
+                }
+            } catch(err) {}
+        }
+
+        function saveDuration(id, seconds) {
+            // تحويل الثواني الى دقائق:ثواني
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            const timeStr = `${m}:${s < 10 ? '0'+s : s}`;
+            
+            // حفظ اذا ما كان موجود
+            if (savedDurations[id] !== timeStr) {
+                savedDurations[id] = timeStr;
+                localStorage.setItem('hameed_durations', JSON.stringify(savedDurations));
+                
+                // تحديث الواجهة فوراً اذا كانت مفتوحة بالخلفية
+                const badge = document.getElementById(`dur_${id}`);
+                if (badge) {
+                    badge.innerHTML = `<i class="fa-regular fa-clock text-[9px]"></i> ${timeStr}`;
+                    badge.classList.replace('text-slate-300', 'text-brand-500');
+                    badge.classList.replace('bg-slate-50', 'bg-brand-50');
+                }
+            }
+        }
+
         function closeVideoModal() {
+            window.removeEventListener('message', handleVideoMessage); // توقف عن الاستماع
             const modal = document.getElementById('videoModal');
             modal.classList.add('opacity-0');
             setTimeout(()=>{
@@ -389,6 +353,7 @@
             }
         }
 
+        // --- باقي الوظائف المساعدة ---
         function checkLastWatched() {
             const last = JSON.parse(localStorage.getItem('hameed_lastWatched'));
             if(last) {
@@ -396,13 +361,48 @@
                 document.getElementById('resumeTitle').innerText = last.title;
             }
         }
-
         function resumeLastWatched() {
             const last = JSON.parse(localStorage.getItem('hameed_lastWatched'));
             if(last) openPlayer(last.title, last.url, last.id);
         }
-
-        // --- Confetti ---
+        function updateStats() {
+            let total = 0; allData.forEach(t => t.classes.forEach(c => total += c.lectures.length));
+            const count = completedLectures.length;
+            const percent = total ? Math.round((count/total)*100) : 0;
+            document.getElementById('percentageText').innerText = `${percent}%`;
+        }
+        function updateSmartSchedule() {
+            const container = document.getElementById('scheduleContent');
+            const card = document.getElementById('smartScheduleCard');
+            let pendingLectures = [];
+            allData.forEach(t => t.classes.forEach(c => c.lectures.forEach(l => {
+                if (!completedLectures.includes(l.id)) pendingLectures.push({ title: l.title, id: l.id });
+            })));
+            if (pendingLectures.length === 0) {
+                card.classList.add('hidden'); return;
+            }
+            const nextUp = pendingLectures.slice(0, 2);
+            let currentTime = new Date();
+            currentTime.setMinutes(currentTime.getMinutes() + 10);
+            let html = '';
+            nextUp.forEach((lec, index) => {
+                const timeString = currentTime.toLocaleTimeString('ar-IQ', { hour: 'numeric', minute: '2-digit' });
+                html += `
+                    <div class="flex items-center justify-between bg-white/5 p-3 rounded-xl hover:bg-white/10 transition-colors border border-white/5">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-brand-500/20 flex items-center justify-center text-brand-300 font-bold text-xs border border-brand-500/30">${index + 1}</div>
+                            <div>
+                                <p class="font-bold text-sm line-clamp-1">${lec.title}</p>
+                                <p class="text-[10px] text-brand-300">وقت البدء المقترح: <span class="text-white font-bold dir-ltr">${timeString}</span></p>
+                            </div>
+                        </div>
+                        ${index === 0 ? '<span class="text-[10px] bg-red-500 px-2 py-0.5 rounded text-white animate-pulse">التالي</span>' : ''}
+                    </div>`;
+                currentTime.setHours(currentTime.getHours() + 1);
+            });
+            container.innerHTML = html;
+            card.classList.remove('hidden');
+        }
         function triggerConfetti() {
             const c = document.getElementById('confetti-canvas');
             const x = c.getContext('2d');
@@ -417,7 +417,20 @@
             anim();
         }
 
-        // تشغيل مباشر اذا مسجل
+        // بحث
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const val = e.target.value.toLowerCase();
+            if(!val) renderApp(allData);
+            else {
+                const filtered = allData.map(t => ({
+                    ...t, classes: t.classes.map(c => ({
+                        ...c, lectures: c.lectures.filter(l => l.title.toLowerCase().includes(val))
+                    })).filter(c => c.lectures.length)
+                })).filter(t => t.classes.length);
+                renderApp(filtered);
+            }
+        });
+
         if(localStorage.getItem('hameed_loggedIn')==='true') {
             document.getElementById('loginScreen').classList.add('hidden');
             document.getElementById('appScreen').classList.remove('hidden');
