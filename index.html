@@ -290,6 +290,23 @@
             }
         }
 
+        // 🟢 الوظيفة الجديدة/المعدلة لتحويل الثواني إلى HH:MM:SS 
+        function formatTime(totalSeconds) {
+            if (!totalSeconds || isNaN(totalSeconds) || totalSeconds <= 0) return '--:--';
+            
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = Math.floor(totalSeconds % 60);
+
+            let timeStr = `${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
+            if (hours > 0) {
+                // إذا كان هناك ساعات، أضفها في البداية مع تنسيق الدقائق بصفرين إذا كانت أقل من 10
+                timeStr = `${hours}:${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
+            }
+
+            return timeStr;
+        }
+
         // --- الرسم (Rendering) ---
         function renderApp(data) {
             const container = document.getElementById('dynamicListContainer');
@@ -305,8 +322,9 @@
                     let lecsHtml = '';
                     cls.lectures.forEach(lec => {
                         const isDone = completedLectures.includes(lec.id);
-                        const duration = savedDurations[lec.id] || '--:--';
-                        const thumbUrl = getThumbnailUrl(lec.url); 
+                        // 🔴 هنا نستخدم الدالة formatTime الجديدة
+                        const duration = savedDurations[lec.id] || '--:--'; 
+                        const thumbUrl = getThumbnailUrl(lec.url);
                         
                         lecsHtml += `
                             <div id="row_${lec.id}" class="lecture-item ${isDone ? 'completed' : ''} flex gap-3 p-3 mb-3 bg-white rounded-xl border border-slate-100 hover:shadow-lg transition-all duration-300">
@@ -319,6 +337,7 @@
                                         </div>
                                     </div>
                                     <div class="absolute bottom-1 left-1 bg-black/60 backdrop-blur-md px-1.5 rounded text-[9px] text-white font-bold dir-ltr font-mono">
+                                        <i class="fa-regular fa-clock text-[8px] mr-1"></i>
                                         <span id="dur_img_${lec.id}">${duration}</span>
                                     </div>
                                 </div>
@@ -395,6 +414,7 @@
             currentPlayingId = id;
             
             let finalUrl = url;
+            // تأكد من إضافة context=true لجعل المشغل يرسل رسائل عن حالته (مثل المدة)
             if (!finalUrl.includes('?')) finalUrl += '?context=true';
             else finalUrl += '&context=true';
 
@@ -421,22 +441,26 @@
             checkLastWatched();
         }
 
+        // 🟢 الوظيفة المعدلة لمعالجة الرسائل وتحديث المدة
         function handleVideoMessage(e) {
             if (!currentPlayingId) return;
             try {
-                if (e.data && e.data.type === 'player.ready' && e.data.duration) {
+                // قد يرسل Bunny Stream رسالة player.ready تحتوي على المدة
+                if (e.data && e.data.type === 'player.ready' && typeof e.data.duration === 'number' && e.data.duration > 0) {
+                    saveDuration(currentPlayingId, e.data.duration);
+                } 
+                // أو قد يتم إرسال المدة مباشرة في بعض الحالات الأخرى
+                else if (e.data && typeof e.data.duration === 'number' && e.data.duration > 0) {
                     saveDuration(currentPlayingId, e.data.duration);
                 }
-                if (e.data && typeof e.data.duration === 'number' && e.data.duration > 0) {
-                    saveDuration(currentPlayingId, e.data.duration);
-                }
-            } catch(err) {}
+            } catch(err) {
+                console.error("Error handling video message:", err);
+            }
         }
 
+        // 🟢 الوظيفة المعدلة لحفظ المدة باستخدام التنسيق الجديد (HH:MM:SS)
         function saveDuration(id, seconds) {
-            const m = Math.floor(seconds / 60);
-            const s = Math.floor(seconds % 60);
-            const timeStr = `${m}:${s < 10 ? '0'+s : s}`;
+            const timeStr = formatTime(seconds); // استخدام الدالة الجديدة
             
             if (savedDurations[id] !== timeStr) {
                 savedDurations[id] = timeStr;
