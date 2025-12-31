@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>منصة حميد | تنظيم فول</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://assets.mediadelivery.net/playerjs/player-0.1.0.min.js"></script>
@@ -24,158 +24,197 @@
     </script>
 
     <style>
-        body { background: #f8fafc; -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
-        .animate-enter { animation: slideInUp 0.4s ease-out forwards; opacity: 0; }
-        @keyframes slideInUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        body { background: #f3f4f6; -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
+        .animate-enter { animation: slideInUp 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; opacity: 0; }
+        @keyframes slideInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         
-        /* تحسين استجابة الفيديو */
-        .video-wrapper {
-            position: relative;
+        .lecture-item.completed .status-overlay { opacity: 1; background: rgba(16, 185, 129, 0.9); }
+        .lecture-item.completed .lec-title { text-decoration: line-through; color: #94a3b8; }
+        .lecture-item.completed img { filter: grayscale(100%); }
+
+        /* --- تعديل نافذة الفيديو لتكون متجاوبة جداً --- */
+        .video-wrapper-responsive {
             width: 100%;
             height: 100%;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #000;
-        }
-        
-        #videoContainer {
-            width: 100%;
-            height: 100%;
-            max-height: 80vh; /* يمنع الفيديو من أخذ مساحة ضخمة في الشاشات الطولية */
+            padding: 0;
         }
 
-        iframe {
+        .video-container { 
+            position: relative; 
             width: 100%;
-            height: 100%;
-            aspect-ratio: 16 / 9;
+            aspect-ratio: 16 / 9; /* الحفاظ على أبعاد الفيديو بدقة */
+            background: #000; 
+            overflow: hidden; 
+            box-shadow: 0 20px 50px -10px rgba(0,0,0,0.8);
+        }
+
+        .video-container iframe { 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
             border: none;
         }
 
-        .lecture-item.completed { opacity: 0.7; }
-        .lecture-item.completed .lec-title { text-decoration: line-through; color: #64748b; }
+        /* تنسيق خاص للشاشات الكبيرة (لابتوب/تابلت) */
+        @media (min-width: 768px) {
+            .video-container {
+                border-radius: 16px;
+                max-width: 90%;
+                max-height: 80vh; /* حتى لا يخرج الفيديو عن طول الشاشة */
+            }
+        }
 
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        /* تنسيق خاص للموبايل (شاشة كاملة بالعرض) */
+        @media (max-width: 767px) {
+            .video-container {
+                border-radius: 0;
+                width: 100%;
+            }
+        }
+        
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 20px; }
         
         .countdown-segment { 
-            background: rgba(255, 255, 255, 0.15); 
-            backdrop-blur: blur(4px);
-            border-radius: 12px; 
-            padding: 8px 4px;
-            flex: 1;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            background: rgba(255, 255, 255, 0.1); 
+            border-radius: 8px; 
+            padding: 4px 0;
+            width: 25%; 
         }
     </style>
 </head>
-<body class="text-slate-800 flex flex-col min-h-screen">
+<body class="text-slate-800 h-[100dvh] flex flex-col bg-slate-100">
 
     <canvas id="confetti-canvas" class="fixed inset-0 pointer-events-none z-[100]"></canvas>
 
-    <div id="loginScreen" class="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-slate-900 transition-all duration-500">
-        <div class="w-[90%] max-w-sm p-8 text-center animate-enter">
-            <div class="w-20 h-20 mx-auto mb-6 bg-gradient-to-tr from-brand-600 to-accent-500 rounded-3xl flex items-center justify-center shadow-2xl shadow-brand-500/40">
-                <i class="fa-solid fa-graduation-cap text-3xl text-white"></i>
+    <div id="loginScreen" class="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-slate-900/95 backdrop-blur-xl transition-all duration-500">
+        <div class="w-full max-w-sm p-8 text-center animate-enter">
+            <div class="w-24 h-24 mx-auto mb-6 bg-gradient-to-tr from-brand-600 to-accent-500 rounded-3xl flex items-center justify-center shadow-lg shadow-brand-500/30">
+                <i class="fa-solid fa-graduation-cap text-4xl text-white"></i>
             </div>
-            <h1 class="text-2xl font-black text-white mb-2">منصة حميد</h1>
-            <p class="text-slate-400 text-sm mb-8">سجل دخولك يا بطل</p>
-            <input type="password" id="passwordInput" placeholder="الرمز (123)" class="w-full p-4 bg-white/5 rounded-2xl text-white text-center text-xl font-bold border border-white/10 focus:border-brand-500 outline-none mb-4 transition-all">
-            <button onclick="checkLogin()" class="w-full bg-brand-600 text-white font-bold py-4 rounded-2xl shadow-lg hover:scale-[1.02] active:scale-95 transition-all">دخول للمنصة</button>
-            <p id="errorMsg" class="text-rose-400 mt-4 hidden font-bold">الرمز غلط أغاتي!</p>
+            <h1 class="text-3xl font-black text-white mb-8">منصة حميد</h1>
+            <input type="password" id="passwordInput" placeholder="الرمز (123)" class="w-full p-4 bg-white/10 rounded-xl text-white text-center text-xl font-bold border border-white/10 focus:border-brand-500 outline-none mb-4 transition-colors">
+            <button onclick="checkLogin()" class="w-full bg-brand-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-brand-500 transition-all">طب للمنصة</button>
+            <p id="errorMsg" class="text-rose-400 mt-4 hidden font-bold text-sm">الرمز غلط أغاتي!</p>
         </div>
     </div>
 
-    <div id="appScreen" class="hidden flex-1 flex flex-col w-full max-w-2xl mx-auto bg-white min-h-screen shadow-2xl border-x border-slate-100 relative">
+    <div id="appScreen" class="hidden flex flex-col h-full w-full max-w-xl mx-auto bg-white sm:shadow-2xl sm:border-x border-slate-200">
         
-        <header class="px-5 pt-6 pb-4 sticky top-0 bg-white/80 backdrop-blur-lg z-30 border-b border-slate-50">
-            <div class="flex justify-between items-center mb-6">
+        <header class="px-5 pt-6 pb-4 bg-white/90 backdrop-blur-md sticky top-0 z-20 border-b border-slate-100">
+            <div class="flex justify-between items-center mb-4">
                 <div>
-                    <h1 class="text-xl font-black text-slate-800" id="greetingMsg">هلا والله! 👋</h1>
-                    <p class="text-xs text-slate-400 font-bold mt-1" id="dateDisplay">--</p>
+                    <h1 class="text-xl font-black text-slate-800" id="greetingMsg">هلا والله!</h1>
+                    <p class="text-xs text-slate-500 font-bold" id="dateDisplay">--</p>
                 </div>
                 <div class="flex gap-2">
-                    <div class="text-right px-3 py-1 bg-brand-50 rounded-xl border border-brand-100">
-                        <span class="block text-[10px] text-brand-400 font-bold">الإنجاز</span>
+                    <div class="text-center px-3 py-1 bg-brand-50 rounded-lg border border-brand-100">
+                        <span class="block text-[10px] text-slate-400 font-bold">نسبة الانجاز</span>
                         <span class="text-lg font-black text-brand-600" id="percentageText">0%</span>
                     </div>
-                    <button onclick="logout()" class="w-11 h-11 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center hover:bg-rose-50 hover:text-rose-500 transition-all"><i class="fa-solid fa-power-off"></i></button>
+                    <button onclick="logout()" class="w-10 h-10 rounded-lg bg-rose-50 text-rose-500 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-colors"><i class="fa-solid fa-right-from-bracket"></i></button>
                 </div>
             </div>
             
-            <div id="dateCountdownCard" class="bg-gradient-to-br from-brand-600 via-brand-500 to-indigo-600 p-5 rounded-3xl text-white shadow-xl shadow-brand-500/20 mb-6 overflow-hidden relative">
-                <div class="relative z-10">
-                    <div class="flex justify-between items-center mb-4">
-                        <span class="text-xs font-bold opacity-80 uppercase tracking-wider">العد التنازلي لنصف السنة</span>
-                        <span id="currentDayOfWeek" class="text-xs font-black bg-white/20 px-3 py-1 rounded-full text-white">--</span>
-                    </div>
-                    <div id="countdownTimer" class="flex justify-between gap-2 font-mono text-center">
+            <div id="dateCountdownCard" class="bg-gradient-to-tr from-brand-600 to-brand-500 p-4 rounded-xl text-white shadow-lg shadow-brand-500/30 mb-4 animate-enter">
+                <div class="flex justify-between items-center border-b border-white/20 pb-2 mb-3">
+                    <h3 class="font-bold text-base"><i class="fa-solid fa-sun-cloud ml-2"></i> يومك الحالي</h3>
+                    <span id="currentDayOfWeek" class="font-black text-lg bg-white/20 px-3 py-0.5 rounded-full text-white">--</span>
+                </div>
+
+                <div class="text-center">
+                    <p class="text-sm font-medium mb-2">باقي على نصف السنة</p>
+                    <div id="countdownTimer" class="flex justify-around gap-2 font-mono text-center">
                         </div>
                 </div>
             </div>
+            
+            <div id="apiFetcherArea" class="hidden mb-4">
+                 <button onclick="fetchAllDurationsFromAPI()" class="w-full py-2 bg-slate-800 text-white rounded-lg text-xs font-bold hover:bg-slate-700 transition"><i class="fa-solid fa-cloud-arrow-down ml-2"></i> تحديث أوقات المحاضرات (API)</button>
+            </div>
 
-            <div class="relative group">
-                <i class="fa-solid fa-magnifying-glass absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-brand-500 transition-colors"></i>
-                <input type="text" id="searchInput" placeholder="ابحث عن محاضرة..." class="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 pr-12 pl-4 text-sm font-bold text-slate-700 outline-none focus:bg-white focus:ring-4 focus:ring-brand-500/5 transition-all">
+            <div class="relative">
+                <i class="fa-solid fa-search absolute right-4 top-3.5 text-slate-400"></i>
+                <input type="text" id="searchInput" placeholder="ابحث عن محاضرة..." class="w-full bg-slate-100 rounded-xl py-3 pr-10 pl-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 ring-brand-200 transition-all">
             </div>
         </header>
 
-        <main class="px-5 py-4 pb-24">
-            <div id="resumeContainer" class="hidden mb-6">
-                <button onclick="resumeLastWatched()" class="w-full bg-slate-900 p-4 rounded-2xl flex items-center gap-4 text-right hover:bg-slate-800 transition-all group">
-                    <div class="w-10 h-10 rounded-xl bg-brand-500 flex items-center justify-center text-white group-hover:scale-110 transition-transform"><i class="fa-solid fa-play"></i></div>
-                    <div class="flex-1 overflow-hidden">
-                        <span class="text-[10px] text-brand-400 font-bold">أكمل المشاهدة</span>
-                        <h4 class="font-bold text-white text-sm truncate" id="resumeTitle">...</h4>
+        <main class="flex-1 overflow-y-auto px-5 py-4 pb-32 scroll-smooth">
+            
+            <div id="smartScheduleCard" class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-5 text-white mb-6 shadow-xl shadow-slate-900/20 hidden animate-enter">
+                <div class="flex items-center gap-2 mb-3 border-b border-white/10 pb-3">
+                    <i class="fa-regular fa-calendar-check text-brand-400"></i>
+                    <h3 class="font-bold text-sm">جدولك لليوم (نظام ذكي)</h3>
+                </div>
+                <div id="scheduleContent" class="space-y-3"></div>
+            </div>
+
+            <div id="resumeContainer" class="hidden mb-6 animate-enter">
+                <button onclick="resumeLastWatched()" class="w-full bg-brand-50 border border-brand-100 p-4 rounded-2xl flex items-center gap-4 text-right hover:bg-brand-100 transition-colors">
+                    <div class="w-10 h-10 rounded-full bg-brand-200 flex items-center justify-center text-brand-700"><i class="fa-solid fa-play"></i></div>
+                    <div class="flex-1">
+                        <span class="text-[10px] text-brand-600 font-bold uppercase">وين ما وكفت</span>
+                        <h4 class="font-bold text-slate-800 text-sm truncate" id="resumeTitle">...</h4>
                     </div>
                 </button>
             </div>
 
             <div id="loadingText" class="text-center py-10 text-slate-400">
-                <div class="w-8 h-8 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mx-auto mb-4"></div>
-                <p class="text-sm font-bold">جاري ترتيب جدولك...</p>
+                <i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2"></i>
+                <p class="text-sm">دا نحمل البيانات...</p>
             </div>
 
-            <div id="dynamicListContainer" class="space-y-8"></div>
+            <div id="dynamicListContainer" class="space-y-6"></div>
         </main>
     </div>
 
-    <div id="videoModal" class="fixed inset-0 z-[100] bg-black hidden flex flex-col transition-all duration-300">
-        <div class="p-4 flex justify-between items-center bg-black/50 backdrop-blur-md sticky top-0 z-10">
-            <h2 class="text-white font-bold text-sm truncate flex-1 pl-4" id="modalTitle">جاري التحميل...</h2>
-            <button onclick="closeVideoModal()" class="text-white w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-rose-500 transition-colors"><i class="fa-solid fa-xmark"></i></button>
+    <div id="videoModal" class="fixed inset-0 z-[100] bg-black hidden flex flex-col opacity-0 transition-opacity duration-300">
+        <div class="p-4 flex justify-between items-center bg-white/10 backdrop-blur-md z-10">
+            <h2 class="text-white font-bold text-sm truncate flex-1 pl-4" id="modalTitle">عنوان</h2>
+            <button onclick="closeVideoModal()" class="text-white w-8 h-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-rose-500 transition-colors"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        
-        <div class="flex-1 flex items-center justify-center overflow-hidden">
-            <div class="video-wrapper">
-                <div id="videoContainer" class="flex items-center justify-center">
-                    </div>
+
+        <div class="flex-1 video-wrapper-responsive relative bg-black">
+            <div class="video-container shadow-2xl">
+                <div id="videoContainer" class="w-full h-full"></div>
             </div>
         </div>
 
-        <div class="p-6 bg-black/80 backdrop-blur-xl flex justify-center border-t border-white/5">
-            <button id="markCompleteBtn" onclick="completeFromPlayer()" class="w-full max-w-xs bg-brand-600 text-white py-4 rounded-2xl font-bold shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-2">
-                <i class="fa-solid fa-check-circle"></i> <span>خلصت المحاضرة</span>
+        <div class="p-6 bg-black flex justify-center z-10 pb-10 sm:pb-6">
+            <button id="markCompleteBtn" onclick="completeFromPlayer()" class="bg-brand-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-brand-600/30 active:scale-95 transition-transform flex items-center gap-2">
+                <i class="fa-solid fa-check"></i> <span>تم، كملتها</span>
             </button>
         </div>
     </div>
 
     <script>
-        // الإعدادات (تم التحديث)
-        const BUNNY_API_KEY = "071eadcd-7e8e-4840-90403f7fa8d2-1628-4800";
-        const BUNNY_LIBRARY_ID = "572295";
+        // ==========================================
+        // ⚙️ إعدادات باني (اختياري لجلب الوقت تلقائياً)
+        // ==========================================
+        const BUNNY_API_KEY = "071eadcd-7e8e-4840-90403f7fa8d2-1628-4800"; 
+        const BUNNY_LIBRARY_ID = "572295"; 
+
         const PASSWORD = "123";
         const THUMBNAIL_BASE = "https://vz-dccdba03-a7d.b-cdn.net"; 
         
         let allData = [];
         let completedLectures = JSON.parse(localStorage.getItem('hameed_completed_v3')) || [];
-        // مخزن جديد لمراقبة الدقائق { id: seconds }
-        let lecturesProgress = JSON.parse(localStorage.getItem('hameed_lectures_progress')) || {};
+        let savedDurations = JSON.parse(localStorage.getItem('hameed_durations')) || {};
         let currentPlayingId = null;
-        let playerInstance = null;
+        let playerInstance = null; // لتخزين كائن المشغل
 
+        // --- إدارة الدخول ---
         function checkLogin() {
             if(document.getElementById('passwordInput').value === PASSWORD) {
                 localStorage.setItem('hameed_loggedIn', 'true');
-                document.getElementById('loginScreen').classList.add('opacity-0');
+                document.getElementById('loginScreen').classList.add('opacity-0', 'pointer-events-none');
                 setTimeout(() => {
                     document.getElementById('loginScreen').classList.add('hidden');
                     document.getElementById('appScreen').classList.remove('hidden');
@@ -185,13 +224,19 @@
                 document.getElementById('errorMsg').classList.remove('hidden');
             }
         }
-
         function logout() { localStorage.removeItem('hameed_loggedIn'); location.reload(); }
 
+        // --- تحميل البيانات ---
         async function loadData() {
             try {
+                if(BUNNY_API_KEY && BUNNY_LIBRARY_ID) {
+                    document.getElementById('apiFetcherArea').classList.remove('hidden');
+                }
+
                 const response = await fetch('data.json');
+                if(!response.ok) throw new Error();
                 const raw = await response.json();
+                
                 allData = raw.teachers.map((t, ti) => ({
                     ...t, classes: t.classes.map((c, ci) => ({
                         ...c, lectures: c.lectures.map((l, li) => ({
@@ -199,17 +244,21 @@
                         }))
                     }))
                 }));
+
                 document.getElementById('loadingText').classList.add('hidden');
                 renderApp(allData);
                 updateStats();
+                updateSmartSchedule();
                 checkLastWatched();
                 updateDateTime();
                 setupCountdown();
+                
             } catch(e) {
-                document.getElementById('loadingText').innerHTML = "تأكد من وجود ملف data.json";
+                document.getElementById('loadingText').innerHTML = "فشل تحميل الملف (data.json)";
             }
         }
 
+        // --- دوال الوقت والتاريخ ---
         function updateDateTime() {
             const today = new Date();
             document.getElementById('dateDisplay').innerText = today.toLocaleDateString('ar-IQ', {weekday:'long', day:'numeric', month:'long'});
@@ -217,169 +266,266 @@
         }
 
         function setupCountdown() {
-            const targetDate = new Date(new Date().getFullYear() + 1, 0, 20);
-            const timer = document.getElementById('countdownTimer');
+            const countdownElement = document.getElementById('countdownTimer');
+            const now = new Date();
+            const targetYear = now.getMonth() < 1 ? now.getFullYear() : now.getFullYear() + 1;
+            const targetDate = new Date(targetYear, 0, 20);
             
-            function update() {
-                const distance = targetDate - new Date();
-                const d = Math.floor(distance / 86400000);
-                const h = Math.floor((distance % 86400000) / 3600000);
-                const m = Math.floor((distance % 3600000) / 60000);
-                const s = Math.floor((distance % 60000) / 1000);
+            if (targetDate.getTime() < now.getTime()) {
+                countdownElement.innerHTML = '<span class="text-lg font-bold">🎉 خلصت! بالتوفيق!</span>';
+                return;
+            }
 
-                timer.innerHTML = `
-                    <div class="countdown-segment"><span class="text-xl font-black">${d}</span><span class="text-[9px] opacity-70">يوم</span></div>
-                    <div class="countdown-segment"><span class="text-xl font-black">${h}</span><span class="text-[9px] opacity-70">ساعة</span></div>
-                    <div class="countdown-segment"><span class="text-xl font-black">${m}</span><span class="text-[9px] opacity-70">دقيقة</span></div>
-                    <div class="countdown-segment"><span class="text-xl font-black">${s}</span><span class="text-[9px] opacity-70">ثانية</span></div>
+            function updateCountdown() {
+                const now = new Date().getTime();
+                const distance = targetDate.getTime() - now;
+                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+                if (distance < 0) {
+                    clearInterval(countdownInterval);
+                    countdownElement.innerHTML = '<span class="text-lg font-bold">🎉 خلصت! بالتوفيق!</span>';
+                    return;
+                }
+
+                countdownElement.innerHTML = `
+                    <div class="countdown-segment"><span class="text-2xl font-black">${days}</span><span class="text-xs">يوم</span></div>
+                    <div class="countdown-segment"><span class="text-2xl font-black">${hours < 10 ? '0' + hours : hours}</span><span class="text-xs">ساعة</span></div>
+                    <div class="countdown-segment"><span class="text-2xl font-black">${minutes < 10 ? '0' + minutes : minutes}</span><span class="text-xs">دقيقة</span></div>
+                    <div class="countdown-segment"><span class="text-2xl font-black">${seconds < 10 ? '0' + seconds : seconds}</span><span class="text-xs">ثانية</span></div>
                 `;
             }
-            setInterval(update, 1000); update();
+            const countdownInterval = setInterval(updateCountdown, 1000);
+            updateCountdown();
         }
 
+        function getThumbnailUrl(videoUrl) {
+            try {
+                const NO_THUMBNAIL_URL = 'https://via.placeholder.com/150x100?text=No+Video';
+                if (!videoUrl || videoUrl === '#' || !videoUrl.includes('mediadelivery.net')) return NO_THUMBNAIL_URL;
+                const videoId = videoUrl.split('/').pop().split('?')[0];
+                if(videoId) return `${THUMBNAIL_BASE}/${videoId}/thumbnail.jpg`;
+                return NO_THUMBNAIL_URL;
+            } catch (e) { return 'https://via.placeholder.com/150x100?text=Error'; }
+        }
+
+        function formatTime(totalSeconds) {
+            if (!totalSeconds || isNaN(totalSeconds) || totalSeconds <= 0) return '--:--';
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = Math.floor(totalSeconds % 60);
+            let timeStr = `${minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
+            if (hours > 0) timeStr = `${hours}:${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
+            return timeStr;
+        }
+
+        async function fetchAllDurationsFromAPI() {
+            if (!BUNNY_API_KEY || !BUNNY_LIBRARY_ID) {
+                alert("يرجى إضافة API Key و Library ID في كود الصفحة أولاً.");
+                return;
+            }
+            
+            const btn = document.querySelector('#apiFetcherArea button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري التحميل...';
+            btn.disabled = true;
+
+            try {
+                for (const teacher of allData) {
+                    for (const cls of teacher.classes) {
+                        for (const lec of cls.lectures) {
+                            if (lec.url && lec.url.includes('mediadelivery')) {
+                                const videoId = lec.url.split('/').pop().split('?')[0];
+                                if (videoId && !savedDurations[lec.id]) {
+                                    try {
+                                        const res = await fetch(`https://video.bunnycdn.com/library/${BUNNY_LIBRARY_ID}/videos/${videoId}`, {
+                                            method: 'GET',
+                                            headers: {
+                                                'AccessKey': BUNNY_API_KEY,
+                                                'Accept': 'application/json'
+                                            }
+                                        });
+                                        if (res.ok) {
+                                            const data = await res.json();
+                                            if (data.length) {
+                                                saveDuration(lec.id, data.length);
+                                            }
+                                        }
+                                    } catch (err) { console.error(err); }
+                                }
+                            }
+                        }
+                    }
+                }
+                alert("تم تحديث الأوقات بنجاح!");
+            } catch (error) {
+                alert("حدث خطأ أثناء الاتصال بـ API");
+            }
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+
+        function saveDuration(id, seconds) {
+            const timeStr = formatTime(seconds);
+            if (savedDurations[id] !== timeStr) {
+                savedDurations[id] = timeStr;
+                localStorage.setItem('hameed_durations', JSON.stringify(savedDurations));
+                const badge = document.getElementById(`dur_img_${id}`);
+                if (badge) badge.innerText = timeStr;
+            }
+        }
+
+        // --- الرسم (Rendering) ---
         function renderApp(data) {
             const container = document.getElementById('dynamicListContainer');
             container.innerHTML = '';
             data.forEach((teacher, ti) => {
                 const section = document.createElement('div');
                 section.className = "animate-enter";
-                section.style.animationDelay = `${ti * 0.1}s`;
-                
-                let html = `
-                    <div class="flex items-center gap-4 mb-5">
-                        <div class="relative">
-                            <img src="${teacher.image}" class="w-16 h-16 rounded-2xl object-cover border-2 border-slate-100 shadow-sm">
-                            <div class="absolute -bottom-2 -right-2 bg-brand-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg">${teacher.subject}</div>
-                        </div>
+                section.style.animationDelay = `${ti * 100}ms`;
+                let classesHtml = '';
+                teacher.classes.forEach((cls, ci) => {
+                    let lecsHtml = '';
+                    cls.lectures.forEach(lec => {
+                        const isDone = completedLectures.includes(lec.id);
+                        const duration = savedDurations[lec.id] || '--:--'; 
+                        const thumbUrl = getThumbnailUrl(lec.url);
+                        lecsHtml += `
+                            <div id="row_${lec.id}" class="lecture-item ${isDone ? 'completed' : ''} flex gap-3 p-3 mb-3 bg-white rounded-xl border border-slate-100 hover:shadow-lg transition-all duration-300">
+                                <div class="relative w-32 h-20 flex-shrink-0 cursor-pointer rounded-lg overflow-hidden group" onclick="openPlayer('${lec.title.replace(/'/g, "\\'")}', '${lec.url}', '${lec.id}')">
+                                    <img src="${thumbUrl}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 bg-slate-200" onerror="this.src='https://via.placeholder.com/150?text=No+Img'">
+                                    <div class="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                                        <div class="w-8 h-8 rounded-full bg-white/30 backdrop-blur-sm flex items-center justify-center text-white scale-90 group-hover:scale-110 transition-transform"><i class="fa-solid fa-play text-xs pl-0.5"></i></div>
+                                    </div>
+                                    <div class="absolute bottom-1 left-1 bg-black/60 backdrop-blur-md px-1.5 rounded text-[9px] text-white font-bold dir-ltr font-mono">
+                                        <i class="fa-regular fa-clock text-[8px] mr-1"></i><span id="dur_img_${lec.id}">${duration}</span>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col justify-between flex-1 py-0.5">
+                                    <div>
+                                        <div class="flex justify-between items-start">
+                                            <h3 class="lec-title text-sm font-bold text-slate-800 leading-snug mb-1 line-clamp-2">${lec.title}</h3>
+                                            <button onclick="toggleComplete('${lec.id}')" class="status-btn w-6 h-6 rounded-full border-2 border-slate-200 flex items-center justify-center transition-all ${isDone ? 'bg-green-500 border-green-500 text-white' : 'text-transparent hover:border-brand-300'}"><i class="fa-solid fa-check text-xs"></i></button>
+                                        </div>
+                                        ${lec.description ? `<p class="text-[10px] text-slate-400 line-clamp-1">${lec.description}</p>` : ''}
+                                    </div>
+                                    <div class="flex items-center gap-2 mt-auto">
+                                        <span class="text-[9px] bg-slate-50 text-slate-400 px-2 py-0.5 rounded border border-slate-100">فيديو مسجل</span>
+                                    </div>
+                                </div>
+                            </div>`;
+                    });
+                    classesHtml += `
+                        <details class="group mb-4" ${ci === 0 ? 'open' : ''}>
+                            <summary class="flex items-center justify-between p-3 bg-white rounded-xl cursor-pointer list-none font-bold text-slate-700 text-sm select-none shadow-sm mb-2 border border-slate-100/50 hover:bg-slate-50 transition-colors">
+                                <span class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-brand-500"></span>${cls.name}</span>
+                                <i class="fa-solid fa-chevron-down text-xs text-slate-400 transition-transform group-open:rotate-180"></i>
+                            </summary>
+                            <div class="pt-1 px-1">${lecsHtml}</div>
+                        </details>`;
+                });
+                section.innerHTML = `
+                    <div class="flex items-center gap-4 mb-4 mt-2 px-1">
+                        <img src="${teacher.image}" class="w-14 h-14 rounded-2xl bg-white p-1 object-cover shadow-sm border border-slate-100">
                         <div>
                             <h2 class="font-black text-lg text-slate-800">${teacher.name}</h2>
-                            <p class="text-xs text-slate-400 font-medium">عدد الفصول: ${teacher.classes.length}</p>
+                            <span class="text-[10px] bg-brand-50 text-brand-600 px-2.5 py-1 rounded-full font-bold border border-brand-100">${teacher.subject}</span>
                         </div>
                     </div>
-                `;
-
-                teacher.classes.forEach(cls => {
-                    html += `
-                        <details class="group mb-4 bg-slate-50 rounded-2xl overflow-hidden border border-slate-100 open:bg-white open:shadow-lg transition-all" open>
-                            <summary class="flex items-center justify-between p-4 cursor-pointer list-none font-bold text-slate-700 select-none">
-                                <span class="flex items-center gap-3">
-                                    <span class="w-2 h-2 rounded-full bg-brand-500"></span>
-                                    ${cls.name}
-                                </span>
-                                <i class="fa-solid fa-chevron-down text-xs transition-transform group-open:rotate-180 opacity-40"></i>
-                            </summary>
-                            <div class="px-3 pb-3 space-y-3">
-                                ${cls.lectures.map(lec => {
-                                    const isDone = completedLectures.includes(lec.id);
-                                    const thumb = lec.url.includes('mediadelivery') ? `${THUMBNAIL_BASE}/${lec.url.split('/').pop().split('?')[0]}/thumbnail.jpg` : '';
-                                    return `
-                                        <div class="lecture-item ${isDone ? 'completed' : ''} bg-white border border-slate-100 p-3 rounded-2xl flex items-center gap-3 hover:border-brand-200 transition-all">
-                                            <div class="relative w-24 h-16 flex-shrink-0 rounded-xl overflow-hidden cursor-pointer group" onclick="openPlayer('${lec.title.replace(/'/g, "\\'")}', '${lec.url}', '${lec.id}')">
-                                                <img src="${thumb}" class="w-full h-full object-cover group-hover:scale-110 transition-transform">
-                                                <div class="absolute inset-0 bg-black/30 flex items-center justify-center text-white">
-                                                    <i class="fa-solid fa-play text-sm"></i>
-                                                </div>
-                                            </div>
-                                            <div class="flex-1 min-w-0">
-                                                <h4 class="lec-title text-sm font-bold text-slate-800 line-clamp-1">${lec.title}</h4>
-                                                <span class="text-[10px] font-bold text-slate-400">محاضرة مسجلة</span>
-                                            </div>
-                                            <button onclick="toggleComplete('${lec.id}')" class="w-8 h-8 rounded-full border-2 border-slate-100 flex items-center justify-center transition-all ${isDone ? 'bg-green-500 border-green-500 text-white' : 'text-transparent hover:border-brand-200'}">
-                                                <i class="fa-solid fa-check text-[10px]"></i>
-                                            </button>
-                                        </div>
-                                    `;
-                                }).join('')}
-                            </div>
-                        </details>
-                    `;
-                });
-                section.innerHTML = html;
+                    ${classesHtml}`;
                 container.appendChild(section);
             });
         }
 
-        // تم تعديل هذه الدالة لإضافة المراقب (Monitor) دون تغيير التصميم
+        function toggleComplete(id) {
+            const row = document.getElementById(`row_${id}`);
+            const btn = row ? row.querySelector('.status-btn') : null;
+            if (completedLectures.includes(id)) {
+                completedLectures = completedLectures.filter(i => i !== id);
+                if(row) row.classList.remove('completed');
+                if(btn) btn.className = "status-btn w-6 h-6 rounded-full border-2 border-slate-200 flex items-center justify-center transition-all text-transparent hover:border-brand-300";
+            } else {
+                completedLectures.push(id);
+                if(row) row.classList.add('completed');
+                if(btn) btn.className = "status-btn w-6 h-6 rounded-full border-2 border-green-500 bg-green-500 flex items-center justify-center transition-all text-white";
+                triggerConfetti();
+            }
+            localStorage.setItem('hameed_completed_v3', JSON.stringify(completedLectures));
+            updateStats();
+            updateSmartSchedule();
+        }
+
+        // --- الفيديو والذاكرة (باستخدام Player.js) ---
         function openPlayer(title, url, id) {
+            if(!url || url === '#') { alert('ماكو رابط!'); return; }
             currentPlayingId = id;
-            const finalUrl = url + (url.includes('?') ? '&' : '?') + 'context=true';
+            
+            let finalUrl = url;
+            if (!finalUrl.includes('?')) finalUrl += '?context=true';
+            else finalUrl += '&context=true';
+
             document.getElementById('modalTitle').innerText = title;
             const modal = document.getElementById('videoModal');
             modal.classList.remove('hidden');
+            setTimeout(()=>modal.classList.remove('opacity-0'), 10);
             
-            // تنظيف الحاوية وإنشاء iframe جديد
-            const videoContainer = document.getElementById('videoContainer');
-            videoContainer.innerHTML = ''; 
+            const container = document.getElementById('videoContainer');
+            container.innerHTML = `<iframe id="activeFrame" src="${finalUrl}" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" style="border:none; width:100%; height:100%;"></iframe>`;
             
-            const iframe = document.createElement('iframe');
-            iframe.id = 'activeFrame';
-            iframe.src = finalUrl;
-            iframe.allow = 'autoplay; fullscreen; picture-in-picture';
-            iframe.allowFullscreen = true;
-            iframe.style = "width:100%; height:100%; border:none; aspect-ratio:16/9;";
-            videoContainer.appendChild(iframe);
-            
-            // تفعيل المراقب (PlayerJS)
-            try {
-                // ننتظر قليلاً ليتم تحميل الـ iframe
-                setTimeout(() => {
-                    playerInstance = new playerjs.Player(iframe);
-                    
-                    // عند الجاهزية، اذهب للوقت المحفوظ
-                    playerInstance.on('ready', () => {
-                        if (lecturesProgress[id] && lecturesProgress[id] > 5) {
-                            // الاستئناف من حيث توقفت
-                            playerInstance.setCurrentTime(lecturesProgress[id]);
-                        }
-                    });
+            setTimeout(() => {
+                try {
+                    const iframe = document.getElementById('activeFrame');
+                    if(iframe && window.playerjs) {
+                        playerInstance = new playerjs.Player(iframe);
+                        
+                        playerInstance.on('ready', () => {
+                            playerInstance.getDuration((d) => {
+                                if(d > 0) saveDuration(currentPlayingId, d);
+                            });
+                        });
+                        
+                        playerInstance.on('timeupdate', (data) => {
+                            if(data.duration > 0) saveDuration(currentPlayingId, data.duration);
+                        });
+                    }
+                } catch(err) {
+                    console.log("PlayerJS Error:", err);
+                }
+            }, 500);
 
-                    // مراقبة الوقت كل ثانية وحفظه
-                    playerInstance.on('timeupdate', (data) => {
-                        lecturesProgress[id] = data.seconds;
-                        localStorage.setItem('hameed_lectures_progress', JSON.stringify(lecturesProgress));
-                    });
-                }, 1000);
-            } catch (err) {
-                console.log("Player Error", err);
-            }
-            
             const btn = document.getElementById('markCompleteBtn');
             if(completedLectures.includes(id)) {
                 btn.classList.replace('bg-brand-600', 'bg-green-600');
                 btn.innerHTML = '<i class="fa-solid fa-check-double"></i> <span>مكملها انت</span>';
             } else {
                 btn.classList.replace('bg-green-600', 'bg-brand-600');
-                btn.innerHTML = '<i class="fa-solid fa-check-circle"></i> <span>خلصت المحاضرة</span>';
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> <span>تم، كملتها</span>';
             }
+
             localStorage.setItem('hameed_lastWatched', JSON.stringify({title, url, id}));
             checkLastWatched();
         }
 
         function closeVideoModal() {
-            // إيقاف المشغل وتنظيف الذاكرة
-            if (playerInstance) {
-                try { playerInstance.off('timeupdate'); } catch(e){}
+            if(playerInstance) {
+                try { playerInstance.off('ready'); playerInstance.off('timeupdate'); } catch(e){}
                 playerInstance = null;
             }
-            document.getElementById('videoModal').classList.add('hidden');
-            document.getElementById('videoContainer').innerHTML = '';
-        }
-
-        function toggleComplete(id) {
-            if (completedLectures.includes(id)) {
-                completedLectures = completedLectures.filter(i => i !== id);
-            } else {
-                completedLectures.push(id);
-                triggerConfetti();
-            }
-            localStorage.setItem('hameed_completed_v3', JSON.stringify(completedLectures));
-            renderApp(allData);
-            updateStats();
+            const modal = document.getElementById('videoModal');
+            modal.classList.add('opacity-0');
+            setTimeout(()=>{
+                modal.classList.add('hidden');
+                document.getElementById('videoContainer').innerHTML = '';
+            }, 300);
         }
 
         function completeFromPlayer() {
-            if(currentPlayingId && !completedLectures.includes(currentPlayingId)) toggleComplete(currentPlayingId);
-            closeVideoModal();
+            if(currentPlayingId) {
+                if(!completedLectures.includes(currentPlayingId)) toggleComplete(currentPlayingId);
+                closeVideoModal();
+            }
         }
 
         function checkLastWatched() {
@@ -389,28 +535,55 @@
                 document.getElementById('resumeTitle').innerText = last.title;
             }
         }
-
         function resumeLastWatched() {
             const last = JSON.parse(localStorage.getItem('hameed_lastWatched'));
             if(last) openPlayer(last.title, last.url, last.id);
         }
-
         function updateStats() {
-            let total = 0; 
-            allData.forEach(t => t.classes.forEach(c => total += c.lectures.length));
-            const percent = total ? Math.round((completedLectures.length / total) * 100) : 0;
+            let total = 0; allData.forEach(t => t.classes.forEach(c => total += c.lectures.length));
+            const count = completedLectures.length;
+            const percent = total ? Math.round((count/total)*100) : 0;
             document.getElementById('percentageText').innerText = `${percent}%`;
         }
-
+        function updateSmartSchedule() {
+            const container = document.getElementById('scheduleContent');
+            const card = document.getElementById('smartScheduleCard');
+            let pendingLectures = [];
+            allData.forEach(t => t.classes.forEach(c => c.lectures.forEach(l => {
+                if (!completedLectures.includes(l.id)) pendingLectures.push({ title: l.title, id: l.id });
+            })));
+            if (pendingLectures.length === 0) { card.classList.add('hidden'); return; }
+            const nextUp = pendingLectures.slice(0, 2);
+            let currentTime = new Date();
+            currentTime.setMinutes(currentTime.getMinutes() + 10);
+            let html = '';
+            nextUp.forEach((lec, index) => {
+                const timeString = currentTime.toLocaleTimeString('ar-IQ', { hour: 'numeric', minute: '2-digit' });
+                html += `
+                    <div class="flex items-center justify-between bg-white/5 p-3 rounded-xl hover:bg-white/10 transition-colors border border-white/5">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-brand-500/20 flex items-center justify-center text-brand-300 font-bold text-xs border border-brand-500/30">${index + 1}</div>
+                            <div>
+                                <p class="font-bold text-sm line-clamp-1">${lec.title}</p>
+                                <p class="text-[10px] text-brand-300">وقت البدء المقترح: <span class="text-white font-bold dir-ltr">${timeString}</span></p>
+                            </div>
+                        </div>
+                        ${index === 0 ? '<span class="text-[10px] bg-red-500 px-2 py-0.5 rounded text-white animate-pulse">التالي</span>' : ''}
+                    </div>`;
+                currentTime.setHours(currentTime.getHours() + 1);
+            });
+            container.innerHTML = html;
+            card.classList.remove('hidden');
+        }
         function triggerConfetti() {
             const c = document.getElementById('confetti-canvas');
             const x = c.getContext('2d');
             c.width = innerWidth; c.height = innerHeight;
-            let p = Array(60).fill().map(()=>({x:c.width/2,y:c.height/2,vx:(Math.random()-.5)*15,vy:(Math.random()-.5)*15,color:`hsl(${Math.random()*360},80%,60%)`,life:100}));
+            let p = Array(50).fill().map(()=>({x:c.width/2,y:c.height/2,vx:(Math.random()-.5)*20,vy:(Math.random()-.5)*20,color:`hsl(${Math.random()*360},100%,50%)`,life:100}));
             function anim(){
                 x.clearRect(0,0,c.width,c.height);
                 p=p.filter(i=>i.life-->0);
-                p.forEach(i=>{i.x+=i.vx;i.y+=i.vy;i.vy+=.4;x.fillStyle=i.color;x.fillRect(i.x,i.y,6,6)});
+                p.forEach(i=>{i.x+=i.vx;i.y+=i.vy;i.vy+=.5;x.fillStyle=i.color;x.fillRect(i.x,i.y,5,5)});
                 if(p.length)requestAnimationFrame(anim);
             }
             anim();
@@ -418,12 +591,15 @@
 
         document.getElementById('searchInput').addEventListener('input', (e) => {
             const val = e.target.value.toLowerCase();
-            const filtered = allData.map(t => ({
-                ...t, classes: t.classes.map(c => ({
-                    ...c, lectures: c.lectures.filter(l => l.title.toLowerCase().includes(val))
-                })).filter(c => c.lectures.length)
-            })).filter(t => t.classes.length);
-            renderApp(filtered);
+            if(!val) renderApp(allData);
+            else {
+                const filtered = allData.map(t => ({
+                    ...t, classes: t.classes.map(c => ({
+                        ...c, lectures: c.lectures.filter(l => l.title.toLowerCase().includes(val))
+                    })).filter(c => c.lectures.length)
+                })).filter(t => t.classes.length);
+                renderApp(filtered);
+            }
         });
 
         if(localStorage.getItem('hameed_loggedIn')==='true') {
