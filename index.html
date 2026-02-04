@@ -187,17 +187,16 @@
     </div>
 
     <script>
-        // إعدادات المنصة - نفس المنطق البرمجي
         const THUMB_BASE = "https://vz-dccdba03-a7d.b-cdn.net";
         
         let allLectures = [];
-        let completed = JSON.parse(localStorage.getItem('huda_done')) || []; // غيرنا مفتاح التخزين لاسم المنصة الجديد
+        let completed = JSON.parse(localStorage.getItem('huda_done')) || [];
         let currentLecId = null;
 
-        // نفس الدوال البرمجية (Login, Fetch, etc) بس مع تغيير النصوص
-        async function loginProcess() {
-            const username = document.getElementById('userInput').value;
-            const password = document.getElementById('passInput').value;
+        // دالة تسجيل الدخول المحلية (بدون سيرفر)
+        function loginProcess() {
+            const username = document.getElementById('userInput').value.trim();
+            const password = document.getElementById('passInput').value.trim();
             const btn = document.getElementById('loginBtn');
             const error = document.getElementById('errorMsg');
 
@@ -207,31 +206,19 @@
             btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> جاري التحقق...';
             error.classList.add('hidden');
 
-            try {
-                // محاكاة الاتصال (نفس اللوجيك القديم)
-                const res = await fetch('/.netlify/functions/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
-
-                const data = await res.json();
-
-                if (res.ok && data.success) {
-                    localStorage.setItem('edson_logged', 'true'); // نبقي نفس مفتاح الدخول القديم للسهولة
+            // محاكاة تأخير بسيط للواقعية
+            setTimeout(() => {
+                // التحقق المباشر من الاسم والباسورد
+                if (username.toLowerCase() === 'hameed' && password === '12345') {
+                    localStorage.setItem('edson_logged', 'true');
                     showApp();
                 } else {
-                    error.innerText = data.message || "المعلومات مو صحيحة، حاولي مرة ثانية";
+                    error.innerText = "اسم المستخدم أو كلمة المرور خطأ!";
                     error.classList.remove('hidden');
                 }
-            } catch (err) {
-                // للبيئة المحلية (تجاوز الخطأ للعرض)
-                localStorage.setItem('edson_logged', 'true');
-                showApp();
-            } finally {
                 btn.disabled = false;
                 btn.innerText = "تسجيل الدخول";
-            }
+            }, 1000);
         }
 
         function showApp() {
@@ -263,7 +250,6 @@
                 renderLectures(allLectures);
                 updateStats();
             } catch (e) {
-                // بيانات وهمية للعرض اذا ماكو ملف
                 document.getElementById('loading').innerHTML = '<span class="text-rose-400">تأكدي من ملف data.json</span>';
             }
         }
@@ -278,7 +264,6 @@
                 const thumb = `${THUMB_BASE}/${vidId}/thumbnail.jpg`;
 
                 const card = document.createElement('div');
-                // تصميم الكارد الأنثوي
                 card.className = `lecture-card bg-white rounded-[1.5rem] border border-slate-50 p-3 shadow-sm cursor-pointer ${isDone ? 'opacity-50 grayscale-[50%]' : ''}`;
                 card.innerHTML = `
                     <div class="relative rounded-[1.2rem] overflow-hidden mb-3 aspect-video bg-pink-50" onclick="openPlayer('${lec.title}', '${lec.url}', '${lec.id}')">
